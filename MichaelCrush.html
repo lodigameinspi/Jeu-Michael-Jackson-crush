@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Michael Jackson Crush - Stranger Things Ambiance</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1c0c0c, #3a0000);
+    color: #ff3c3c;
+    text-align: center;
+    user-select: none;
+  }
+  h1 {
+    margin: 30px 0 10px 0;
+    font-weight: 900;
+    font-size: 3em;
+    color: #ff3c3c;
+    text-shadow: 0 0 10px #ff3c3c, 0 0 30px #ff1a1a;
+    animation: pulse 2s infinite alternate;
+  }
+  @keyframes pulse {
+    0% { text-shadow: 0 0 10px #ff3c3c, 0 0 30px #ff1a1a; }
+    100% { text-shadow: 0 0 20px #ff6666, 0 0 60px #ff3c3c; }
+  }
+  #score {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    font-weight: 700;
+    color: #ff6666;
+    text-shadow: 0 0 6px #ff3c3c;
+  }
+  #comboMessage {
+    font-size: 1.2em;
+    margin: 8px 0 20px 0;
+    height: 30px;
+    color: #ff9999;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  #grid {
+    margin: auto;
+    display: grid;
+    grid-template-columns: repeat(8, 56px);
+    grid-gap: 6px;
+    justify-content: center;
+    user-select: none;
+  }
+  .tile {
+    width: 56px;
+    height: 56px;
+    background: #220000;
+    border-radius: 12px;
+    box-shadow:
+      inset 2px 2px 6px #440000,
+      inset -2px -2px 6px #770000,
+      0 0 8px #ff3c3c;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 32px;
+    color: #ff6666;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+    position: relative;
+  }
+  .tile.selected {
+    box-shadow:
+      0 0 14px 4px #ff1a1a,
+      inset 3px 3px 8px #770000;
+    transform: scale(1.2);
+    z-index: 10;
+  }
+  .tile.matching {
+    animation: sparkle 0.7s ease forwards;
+    z-index: 5;
+  }
+  @keyframes sparkle {
+    0% { filter: brightness(1) saturate(1); }
+    50% { filter: brightness(2) saturate(2); }
+    100% { filter: brightness(1) saturate(1); }
+  }
+  button {
+    margin: 15px 8px;
+    background: #ff3c3c;
+    border: none;
+    padding: 14px 28px;
+    font-weight: 700;
+    font-size: 1.25em;
+    border-radius: 12px;
+    color: #220000;
+    cursor: pointer;
+    box-shadow: 0 6px #b22929;
+    transition: background 0.25s ease;
+  }
+  button:hover {
+    background: #ff6666;
+  }
+  button:active {
+    box-shadow: 0 2px #b22929;
+    transform: translateY(3px);
+  }
+  .shake {
+    animation: shake 0.4s ease;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Michael Jackson Crush - Stranger Things Ambiance</h1>
+<div id="score">Score : 0</div>
+<div id="comboMessage"></div>
+<div id="grid"></div>
+<button id="startBtn">Start</button>
+<button id="testSoundBtn">TEST SON LISOPAINE</button>
+
+<audio id="heHeAudio" src="https://drive.google.com/uc?export=download&id=1SVxmYo_WRCa6yQELtASvvuONjYrChYLC" preload="auto"></audio>
+<audio id="swapAudio" src="https://freesound.org/data/previews/250/250629_4486188-lq.mp3" preload="auto"></audio>
+
+<script>
+  const emojis = ['🕺', '🎤', '🧤', '🕶️', '👞', '🌙'];
+  const grid = document.getElementById('grid');
+  const scoreEl = document.getElementById('score');
+  const comboMessage = document.getElementById('comboMessage');
+  const startBtn = document.getElementById('startBtn');
+  const testSoundBtn = document.getElementById('testSoundBtn');
+  const heHeAudio = document.getElementById('heHeAudio');
+  const swapAudio = document.getElementById('swapAudio');
+  let size = 8;
+  let tiles = [];
+  let selected = null;
+  let score = 0;
+  let isAnimating = false;
+
+  function playHeHe() {
+    heHeAudio.pause();
+    heHeAudio.currentTime = 0;
+    heHeAudio.play().catch(e => console.warn('Son combo bloqué :', e));
+  }
+
+  function playSwapSound() {
+    swapAudio.pause();
+    swapAudio.currentTime = 0;
+    swapAudio.play().catch(e => {});
+  }
+
+  function createGrid() {
+    if (isAnimating) return;
+    grid.innerHTML = '';
+    tiles = [];
+    for (let i = 0; i < size * size; i++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.index = i;
+      tile.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      tile.addEventListener('click', () => tileClick(tile));
+      grid.appendChild(tile);
+      tiles.push(tile);
+    }
+    score = 0;
+    updateScore();
+    clearComboMessage();
+    selected = null;
+  }
+
+  function updateScore() {
+    scoreEl.textContent = 'Score : ' + score;
+  }
+
+  function tileClick(tile) {
+    if (isAnimating) return;
+    if (!selected) {
+      selected = tile;
+      tile.classList.add('selected');
+    } else if (selected === tile) {
+      selected.classList.remove('selected');
+      selected = null;
+    } else {
+      if (areAdjacent(selected, tile)) {
+        swapTiles(selected, tile, true);
+      } else {
+        selected.classList.add('shake');
+        tile.classList.add('shake');
+        setTimeout(() => {
+          selected.classList.remove('shake');
+          tile.classList.remove('shake');
+        }, 400);
+        selected.classList.remove('selected');
+        selected = null;
+      }
+    }
+  }
+
+  function areAdjacent(t1, t2) {
+    const i1 = parseInt(t1.dataset.index);
+    const i2 = parseInt(t2.dataset.index);
+    const dx = Math.abs(i1 % size - i2 % size);
+    const dy = Math.abs(Math.floor(i1 / size) - Math.floor(i2 / size));
+    return (dx + dy === 1);
+  }
+
+  function swapTiles(t1, t2, playSound) {
+    if (isAnimating) return;
+    isAnimating = true;
+
+    const rect1 = t1.getBoundingClientRect();
+    const rect2 = t2.getBoundingClientRect();
+    const dx = rect2.left - rect1.left;
+    const dy = rect2.top - rect1.top;
+
+    t1.style.transition = 'transform 0.3s ease';
+    t2.style.transition = 'transform 0.3s ease';
+    t1.style.transform = `translate(${dx}px, ${dy}px)`;
+    t2.style.transform = `translate(${-dx}px, ${-dy}px)`;
+
+    if (playSound) playSwapSound();
+
+    setTimeout(() => {
+      t1.style.transition = '';
+      t2.style.transition = '';
+      t1.style.transform = '';
+      t2.style.transform = '';
+
+      const temp = t1.textContent;
+      t1.textContent = t2.textContent;
+      t2.textContent = temp;
+
+      if (checkMatches()) {
+        handleMatches();
+      } else {
+        t1.style.transition = 'transform 0.3s ease';
+        t2.style.transition = 'transform 0.3s ease';
+        t1.style.transform = `translate(${dx}px, ${dy}px)`;
+        t2.style.transform = `translate(${-dx}px, ${-dy}px)`;
+        setTimeout(() => {
+          t1.style.transition = '';
+          t2.style.transition = '';
+          t1.style.transform = '';
+          t2.style.transform = '';
+          isAnimating = false;
+        }, 300);
+      }
+
+      selected.classList.remove('selected');
+      selected = null;
+
+    }, 300);
+  }
+
+  function checkMatches() {
+    let matched = false;
+    for (const tile of tiles) tile.classList.remove('matched');
+
+    // Horizontal
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size - 2; x++) {
+        const i = y * size + x;
+        const a = tiles[i], b = tiles[i+1], c = tiles[i+2];
+        if (a.textContent === b.textContent && b.textContent === c.textContent) {
+          a.classList.add('matched');
+          b.classList.add('matched');
+          c.classList.add('matched');
+          matched = true;
+        }
+      }
+    }
+
+    // Vertical
+    for (let x = 0; x < size; x++) {
+      for (let y = 0; y < size - 2; y++) {
+        const i = y * size + x;
+        const a = tiles[i], b = tiles[i+size], c = tiles[i+2*size];
+        if (a.textContent === b.textContent && b.textContent === c.textContent) {
+          a.classList.add('matched');
+          b.classList.add('matched');
+          c.classList.add('matched');
+          matched = true;
+        }
+      }
+    }
+    return matched;
+  }
+
+  function handleMatches() {
+    showComboMessage("Combo réussi !");
+    playHeHe();
+    score += 10;
+    updateScore();
+
+    const matchedTiles = tiles.filter(t => t.classList.contains('matched'));
+    matchedTiles.forEach(t => t.classList.add('matching'));
+
+    setTimeout(() => {
+      matchedTiles.forEach(t => {
+        t.classList.remove('matching', 'matched');
+        t.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      });
+      if (checkMatches()) {
+        handleMatches();
+      } else {
+        isAnimating = false;
+        clearComboMessage();
+      }
+    }, 700);
+  }
+
+  function showComboMessage(msg) {
+    comboMessage.textContent = msg;
+    comboMessage.style.opacity = '1';
+  }
+
+  function clearComboMessage() {
+    comboMessage.style.opacity = '0';
+    comboMessage.textContent = '';
+  }
+
+  startBtn.onclick = createGrid;
+  testSoundBtn.onclick = playHeHe;
+</script>
+
+</body>
+</html>
